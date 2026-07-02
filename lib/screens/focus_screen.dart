@@ -30,8 +30,13 @@ class _FocusScreenState extends State<FocusScreen>
 
   bool isBgmPlaying = false;
   bool hasCompleted = false;
+  bool isShowingRewardedAd = false;
+  StreamSubscription<void>? bgmCompleteSubscription;
 
   Future<void> startBgm() async {
+    await bgmCompleteSubscription?.cancel();
+    bgmCompleteSubscription = null;
+
     if (!GameStorage.getBgmEnabled()) {
       isBgmPlaying = false;
       await player.stop();
@@ -40,21 +45,49 @@ class _FocusScreenState extends State<FocusScreen>
 
     isBgmPlaying = true;
 
+    bgmCompleteSubscription = player.onPlayerComplete.listen((_) async {
+      if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+        return;
+      }
+
+      await player.stop();
+      await player.play(
+        AssetSource('music/space_bgm.mp3'),
+      );
+    });
+
     await player.setPlayerMode(PlayerMode.mediaPlayer);
-    await player.setReleaseMode(ReleaseMode.loop);
+    await player.setReleaseMode(ReleaseMode.stop);
     await player.setVolume(GameStorage.getBgmVolume());
 
+    await player.stop();
     await player.play(
       AssetSource('music/space_bgm.mp3'),
     );
   }
 
-  Future<void> resumeBgmIfNeeded() async {
-    if (!isBgmPlaying || !GameStorage.getBgmEnabled()) {
+  Future<void> pauseBgmForAd() async {
+    if (!isBgmPlaying) {
       return;
     }
 
-    await player.resume();
+    await player.pause();
+  }
+
+  Future<void> resumeBgmIfNeeded() async {
+    if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+      return;
+    }
+
+    await startBgm();
+  }
+
+  void restoreBgmAfterRewardedAd() {
+    isShowingRewardedAd = false;
+
+    if (mounted) {
+      unawaited(startBgm());
+    }
   }
 
   bool hasUsedContinueAd = false;
@@ -373,19 +406,17 @@ class _FocusScreenState extends State<FocusScreen>
                 : () {
                     final ad = rewardedAd;
                     rewardedAd = null;
+                    isShowingRewardedAd = true;
+                    unawaited(pauseBgmForAd());
 
                     ad!.fullScreenContentCallback = FullScreenContentCallback(
                       onAdDismissedFullScreenContent: (ad) {
                         ad.dispose();
-                        if (mounted) {
-                          resumeBgmIfNeeded();
-                        }
+                        restoreBgmAfterRewardedAd();
                       },
                       onAdFailedToShowFullScreenContent: (ad, error) {
                         ad.dispose();
-                        if (mounted) {
-                          resumeBgmIfNeeded();
-                        }
+                        restoreBgmAfterRewardedAd();
                       },
                     );
 
@@ -466,19 +497,17 @@ class _FocusScreenState extends State<FocusScreen>
 
     final ad = rewardedAd;
     rewardedAd = null;
+    isShowingRewardedAd = true;
+    unawaited(pauseBgmForAd());
 
     ad!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        if (mounted) {
-          resumeBgmIfNeeded();
-        }
+        restoreBgmAfterRewardedAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
-        if (mounted) {
-          resumeBgmIfNeeded();
-        }
+        restoreBgmAfterRewardedAd();
       },
     );
 
@@ -496,12 +525,17 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(
-      AppLifecycleState state,
-      ) {
-    if (state == AppLifecycleState.resumed) {
-      updateRemainingTime();
-      resumeBgmIfNeeded();
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        updateRemainingTime();
+        break;
+
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        break;
     }
   }
 
@@ -510,6 +544,7 @@ class _FocusScreenState extends State<FocusScreen>
     isBgmPlaying = false;
 
     player.stop();
+    bgmCompleteSubscription?.cancel();
     player.dispose();
     sePlayer.dispose();
 
