@@ -1,0 +1,275 @@
+import 'package:hive/hive.dart';
+
+import '../models/celestial_object.dart';
+
+
+class GameStorage {
+
+  static bool getBgmEnabled() {
+    return box.get(
+      "bgmEnabled",
+      defaultValue: true,
+    );
+  }
+
+  static void setBgmEnabled(bool enabled) {
+    box.put(
+      "bgmEnabled",
+      enabled,
+    );
+  }
+
+  static bool getSeEnabled() {
+    return box.get(
+      "seEnabled",
+      defaultValue: true,
+    );
+  }
+
+  static void setSeEnabled(bool enabled) {
+    box.put(
+      "seEnabled",
+      enabled,
+    );
+  }
+
+  static double getBgmVolume() {
+    return box.get(
+      "bgmVolume",
+      defaultValue: 0.5,
+    );
+  }
+
+  static void setBgmVolume(double volume) {
+    box.put(
+      "bgmVolume",
+      volume,
+    );
+  }
+
+  static Future<void> resetAllData() async {
+    await box.clear();
+  }
+
+  static int getTodayFocusMinutes() {
+    final now = DateTime.now();
+    final records = getFocusRecords();
+
+    int total = 0;
+
+    for (final record in records) {
+      final date = DateTime.parse(record["date"] as String);
+
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        total += record["minutes"] as int;
+      }
+    }
+
+    return total;
+  }
+
+  static int getThisMonthFocusMinutes() {
+    final now = DateTime.now();
+    final records = getFocusRecords();
+
+    int total = 0;
+
+    for (final record in records) {
+      final date = DateTime.parse(record["date"] as String);
+
+      if (date.year == now.year &&
+          date.month == now.month) {
+        total += record["minutes"] as int;
+      }
+    }
+
+    return total;
+  }
+
+  static int getThisWeekFocusMinutes() {
+    final now = DateTime.now();
+
+    final startOfWeek = now.subtract(
+      Duration(days: now.weekday - 1),
+    );
+
+    final records = getFocusRecords();
+
+    int total = 0;
+
+    for (final record in records) {
+      final date = DateTime.parse(record["date"] as String);
+
+      if (date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+          date.isBefore(now.add(const Duration(days: 1)))) {
+        total += record["minutes"] as int;
+      }
+    }
+
+    return total;
+  }
+
+
+  static List<Map> getFocusRecords() {
+    final rawList = box.get(
+      "focusRecords",
+      defaultValue: [],
+    );
+
+    return List<Map>.from(rawList);
+  }
+
+  static void addFocusRecord({
+    required int minutes,
+    required int coins,
+    required String objectType,
+  }) {
+    final records = getFocusRecords();
+
+    records.add({
+      "date": DateTime.now().toIso8601String(),
+      "minutes": minutes,
+      "coins": coins,
+      "objectType": objectType,
+    });
+
+    box.put("focusRecords", records);
+  }
+
+  static int getTotalFocusMinutes() {
+
+
+    final records = getFocusRecords();
+
+    int total = 0;
+
+    for (final record in records) {
+      total += record["minutes"] as int;
+    }
+
+    return total;
+  }
+
+
+  static bool spendCoins(int amount) {
+    final current = getCoins();
+
+    if (current < amount) {
+      return false;
+    }
+
+    box.put(
+      "coins",
+      current - amount,
+    );
+
+    return true;
+  }
+
+  static Box get box => Hive.box('gameData');
+
+  static List<CelestialObject> getObjects() {
+    final rawList = box.get(
+      "objects",
+      defaultValue: [],
+    );
+
+    return List<Map>.from(rawList)
+        .map((map) => CelestialObject.fromMap(map))
+        .toList();
+  }
+
+  static void saveObjects(
+      List<CelestialObject> objects,
+      ) {
+    final rawList = objects
+        .map((object) => object.toMap())
+        .toList();
+
+    box.put("objects", rawList);
+  }
+
+  static void addObject(String type) {
+    final objects = getObjects();
+
+    objects.add(
+      CelestialObject(
+        type: type,
+        x: 100 + objects.length * 40,
+        y: 200,
+        size: 1.0,
+        rotation: 0.0,
+      ),
+    );
+
+    saveObjects(objects);
+  }
+
+  static int getCoins() {
+    return box.get(
+      "coins",
+      defaultValue: 0,
+    );
+  }
+
+  static void addCoins(int amount) {
+    final current = getCoins();
+
+    box.put(
+      "coins",
+      current + amount,
+    );
+  }
+  static String getRank() {
+    final total = getTotalFocusMinutes();
+
+    if (total >= 15000) {
+      return "宇宙創造主";
+    }
+
+    if (total >= 5000) {
+      return "銀河管理者";
+    }
+
+    if (total >= 1800) {
+      return "恒星管理者";
+    }
+
+    if (total >= 600) {
+      return "惑星開拓者";
+    }
+
+    if (total >= 120) {
+      return "宇宙飛行士";
+    }
+
+    return "新人観測者";
+  }
+
+  static String getRankByMinutes(int total) {
+    if (total >= 15000) {
+      return "宇宙創造主";
+    }
+
+    if (total >= 5000) {
+      return "銀河管理者";
+    }
+
+    if (total >= 1800) {
+      return "恒星管理者";
+    }
+
+    if (total >= 600) {
+      return "惑星開拓者";
+    }
+
+    if (total >= 120) {
+      return "宇宙飛行士";
+    }
+
+    return "新人観測者";
+  }
+
+}

@@ -1,0 +1,38 @@
+name: cosmic_focus
+
+description: A new Flutter project
+
+publish_to: 'none'
+
+version: 1.0.0+2
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  audioplayers: ^6.7.1
+  flutter:
+    sdk: flutter
+
+  flutter_riverpod: ^3.0.0
+  google_mobile_ads: ^9.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  table_calendar: ^3.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/stars/
+    - assets/objects/
+    - assets/music/
+    - assets/sounds/
