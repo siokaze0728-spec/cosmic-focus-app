@@ -23,34 +23,38 @@ class _FocusScreenState extends State<FocusScreen>
     with WidgetsBindingObserver,
         SingleTickerProviderStateMixin {
   late int remainingSeconds;
+  late DateTime focusStartedAt;
+  late DateTime focusEndsAt;
 
   Timer? timer;
 
   bool isBgmPlaying = false;
+  bool hasCompleted = false;
 
   Future<void> startBgm() async {
     if (!GameStorage.getBgmEnabled()) {
+      isBgmPlaying = false;
+      await player.stop();
       return;
     }
 
     isBgmPlaying = true;
 
     await player.setPlayerMode(PlayerMode.mediaPlayer);
-    await player.setReleaseMode(ReleaseMode.stop);
+    await player.setReleaseMode(ReleaseMode.loop);
     await player.setVolume(GameStorage.getBgmVolume());
 
     await player.play(
       AssetSource('music/space_bgm.mp3'),
     );
+  }
 
-    player.onPlayerComplete.listen((event) async {
-      if (!isBgmPlaying) return;
+  Future<void> resumeBgmIfNeeded() async {
+    if (!isBgmPlaying || !GameStorage.getBgmEnabled()) {
+      return;
+    }
 
-      await player.seek(Duration.zero);
-      await player.play(
-        AssetSource('music/space_bgm.mp3'),
-      );
-    });
+    await player.resume();
   }
 
   bool hasUsedContinueAd = false;
@@ -171,6 +175,8 @@ class _FocusScreenState extends State<FocusScreen>
     WidgetsBinding.instance.addObserver(this);
 
     remainingSeconds = widget.minute * 60;
+    focusStartedAt = DateTime.now();
+    focusEndsAt = focusStartedAt.add(Duration(minutes: widget.minute));
 
     startTimer();
 
@@ -197,183 +203,211 @@ class _FocusScreenState extends State<FocusScreen>
 
     startBgm();
 
-    player.setReleaseMode(ReleaseMode.loop);
-
-    if (GameStorage.getBgmEnabled()) {
-      player.setVolume(GameStorage.getBgmVolume());
-
-      player.play(
-        AssetSource('music/space_bgm.mp3'),
-      );
-    }
-
   }
 
   void startTimer() {
+    timer?.cancel();
+
     timer = Timer.periodic(
       const Duration(seconds: 1),
-          (timer) {
-        if (remainingSeconds > 0) {
-          setState(() {
-            remainingSeconds--;
-          });
-        } else {
-          timer.cancel();
+      (_) {
+        updateRemainingTime();
+      },
+    );
 
-          final beforeTotal =
-          GameStorage.getTotalFocusMinutes();
+    updateRemainingTime();
+  }
 
-          final beforeRank =
-          GameStorage.getRankByMinutes(beforeTotal);
+  void updateRemainingTime() {
+    if (hasCompleted) {
+      return;
+    }
 
+    final secondsLeft = focusEndsAt.difference(DateTime.now()).inSeconds;
 
+    if (secondsLeft > 0) {
+      if (!mounted) {
+        return;
+      }
 
-          GameStorage.addObject(
-            rewardType(),
-          );
+      setState(() {
+        remainingSeconds = secondsLeft;
+      });
+      return;
+    }
 
-          final rareRoll = Random().nextDouble();
+    completeFocus();
+  }
 
-          if (rareRoll < 0.005) {
-            GameStorage.addObject("space_whale");
+  void completeFocus() {
+    if (hasCompleted) {
+      return;
+    }
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("🐋 超激レア！宇宙クジラを発見した！"),
+    hasCompleted = true;
+    timer?.cancel();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      remainingSeconds = 0;
+    });
+
+    final beforeTotal = GameStorage.getTotalFocusMinutes();
+    final beforeRank = GameStorage.getRankByMinutes(beforeTotal);
+    final earnedObjectType = rewardType();
+    final earnedCoins = rewardCoins();
+    final endedAt = DateTime.now();
+
+    GameStorage.addObject(earnedObjectType);
+
+    final rareRoll = Random().nextDouble();
+
+    if (rareRoll < 0.005) {
+      GameStorage.addObject("space_whale");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🐋 超激レア！宇宙クジラを発見した！"),
+        ),
+      );
+    } else if (rareRoll < 0.015) {
+      GameStorage.addObject("black_hole");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🕳 激レア！ブラックホールを発見した！"),
+        ),
+      );
+    } else if (rareRoll < 0.045) {
+      GameStorage.addObject("ufo");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🛸 レア！UFOを発見した！"),
+        ),
+      );
+    }
+
+    GameStorage.addCoins(earnedCoins);
+
+    final recordIndex = GameStorage.addFocusRecord(
+      minutes: widget.minute,
+      coins: earnedCoins,
+      objectType: earnedObjectType,
+      startedAt: focusStartedAt,
+      endedAt: endedAt,
+    );
+
+    final afterTotal = GameStorage.getTotalFocusMinutes();
+    final afterRank = GameStorage.getRankByMinutes(afterTotal);
+    final isRankUp = beforeRank != afterRank;
+
+    if (GameStorage.getSeEnabled()) {
+      sePlayer.play(
+        AssetSource('sounds/success.mp3'),
+      );
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("集中成功！"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "新しい天体を獲得しました！",
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              rewardName(),
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
               ),
-            );
-          } else if (rareRoll < 0.015) {
-            GameStorage.addObject("black_hole");
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("🕳 激レア！ブラックホールを発見した！"),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "+$earnedCoins コイン",
+              style: const TextStyle(
+                fontSize: 24,
+                color: Colors.amber,
               ),
-            );
-          } else if (rareRoll < 0.045) {
-            GameStorage.addObject("ufo");
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("🛸 レア！UFOを発見した！"),
-              ),
-            );
-          }
-
-          GameStorage.addCoins(
-            rewardCoins(),
-          );
-
-          GameStorage.addFocusRecord(
-            minutes: widget.minute,
-            coins: rewardCoins(),
-            objectType: rewardType(),
-          );
-
-          final afterTotal =
-          GameStorage.getTotalFocusMinutes();
-
-          final afterRank =
-          GameStorage.getRankByMinutes(afterTotal);
-
-          final isRankUp =
-              beforeRank != afterRank;
-
-
-
-
-          if (GameStorage.getSeEnabled()) {
-            sePlayer.play(
-              AssetSource('sounds/success.mp3'),
-            );
-          }
-
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AlertDialog(
-              title: const Text("集中成功！"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    "新しい天体を獲得しました！",
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    rewardName(),
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "+${rewardCoins()} コイン",
-                    style: const TextStyle(
-                      fontSize: 24,
-                      color: Colors.amber,
-                    ),
-                  ),
-                  if (isRankUp) ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      "ランクアップ！",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.cyanAccent,
-                      ),
-                    ),
-                    Text(
-                      afterRank,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                  child: const Text("OK"),
-
-
+            ),
+            if (isRankUp) ...[
+              const SizedBox(height: 16),
+              const Text(
+                "ランクアップ！",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.cyanAccent,
                 ),
-                TextButton(
-                  onPressed: rewardedAd == null
-                      ? null
-                      : () {
-                    rewardedAd!.show(
-                      onUserEarnedReward: (ad, reward) {
-                        GameStorage.addObject(
-                          rewardType(),
-                        );
+              ),
+              Text(
+                afterRank,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text("OK"),
+          ),
+          TextButton(
+            onPressed: rewardedAd == null
+                ? null
+                : () {
+                    final ad = rewardedAd;
+                    rewardedAd = null;
 
-                        GameStorage.addCoins(
-                          rewardCoins(),
+                    ad!.fullScreenContentCallback = FullScreenContentCallback(
+                      onAdDismissedFullScreenContent: (ad) {
+                        ad.dispose();
+                        if (mounted) {
+                          resumeBgmIfNeeded();
+                        }
+                      },
+                      onAdFailedToShowFullScreenContent: (ad, error) {
+                        ad.dispose();
+                        if (mounted) {
+                          resumeBgmIfNeeded();
+                        }
+                      },
+                    );
+
+                    ad.show(
+                      onUserEarnedReward: (ad, reward) {
+                        GameStorage.addObject(earnedObjectType);
+                        GameStorage.addCoins(earnedCoins);
+                        GameStorage.updateFocusRecordReward(
+                          index: recordIndex,
+                          coins: earnedCoins * 2,
+                          rewardDoubled: true,
                         );
                       },
                     );
 
-                    rewardedAd = null;
-
                     Navigator.pop(context);
                     Navigator.pop(context);
                   },
-                  child: const Text("広告を見て報酬2倍"),
-                ),
-              ],
-            ),
-          );
-        }
-      },
+            child: const Text("広告を見て報酬2倍"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -386,6 +420,10 @@ class _FocusScreenState extends State<FocusScreen>
 
   void focusFailed() {
     timer?.cancel();
+
+    if (!mounted) {
+      return;
+    }
 
     showDialog(
       context: context,
@@ -426,7 +464,25 @@ class _FocusScreenState extends State<FocusScreen>
       return;
     }
 
-    rewardedAd!.show(
+    final ad = rewardedAd;
+    rewardedAd = null;
+
+    ad!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        if (mounted) {
+          resumeBgmIfNeeded();
+        }
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        if (mounted) {
+          resumeBgmIfNeeded();
+        }
+      },
+    );
+
+    ad.show(
       onUserEarnedReward: (ad, reward) {
         hasUsedContinueAd = true;
 
@@ -437,16 +493,15 @@ class _FocusScreenState extends State<FocusScreen>
         loadRewardedAd();
       },
     );
-
-    rewardedAd = null;
   }
 
   @override
   void didChangeAppLifecycleState(
       AppLifecycleState state,
       ) {
-    if (state == AppLifecycleState.paused) {
-      focusFailed();
+    if (state == AppLifecycleState.resumed) {
+      updateRemainingTime();
+      resumeBgmIfNeeded();
     }
   }
 
@@ -456,8 +511,10 @@ class _FocusScreenState extends State<FocusScreen>
 
     player.stop();
     player.dispose();
+    sePlayer.dispose();
 
     astronautController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
 
     super.dispose();

@@ -38,6 +38,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return total;
   }
 
+  String formatClock(DateTime date) {
+    return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+  }
+
+  DateTime recordStartTime(Map record, DateTime endTime) {
+    final startDate = record["startDate"];
+
+    if (startDate is String) {
+      return DateTime.parse(startDate);
+    }
+
+    return endTime.subtract(
+      Duration(minutes: record["minutes"] as int),
+    );
+  }
+
+  DateTime recordEndTime(Map record) {
+    final endDate = record["endDate"];
+
+    if (endDate is String) {
+      return DateTime.parse(endDate);
+    }
+
+    return DateTime.parse(record["date"] as String);
+  }
+
+  String rewardText(Map record) {
+    final coins = record["coins"] as int;
+    final multiplier = record["rewardMultiplier"] as int? ?? 1;
+
+    if (multiplier > 1) {
+      return "+$coins 🪙（広告${multiplier}倍）";
+    }
+
+    return "+$coins 🪙";
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedRecords =
@@ -124,17 +161,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
               itemBuilder: (context, index) {
                 final record = selectedRecords[index];
 
-                final date = DateTime.parse(
-                  record["date"] as String,
-                );
+                final endTime = recordEndTime(record);
+                final startTime = recordStartTime(record, endTime);
 
                 return ListTile(
                   leading: const Icon(Icons.timer),
                   title: Text("${record["minutes"]} 分 集中"),
                   subtitle: Text(
-                    "${date.hour}:${date.minute.toString().padLeft(2, '0')}",
+                    "${formatClock(startTime)}〜${formatClock(endTime)}",
                   ),
-                  trailing: Text("+${record["coins"]} 🪙"),
+                  trailing: Text(rewardText(record)),
                 );
               },
             ),
