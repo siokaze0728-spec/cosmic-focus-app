@@ -20,6 +20,8 @@ class _UniverseScreenState extends State<UniverseScreen>
 
   late AnimationController controller;
 
+  final Stopwatch astronautDriftClock = Stopwatch();
+
   List<Offset> velocities = [];
 
   List<Offset> explosionVelocities = [];
@@ -38,6 +40,8 @@ class _UniverseScreenState extends State<UniverseScreen>
     controller.addListener(() {
       moveObjects();
     });
+
+    astronautDriftClock.start();
 
     controller.repeat();
   }
@@ -381,8 +385,7 @@ class _UniverseScreenState extends State<UniverseScreen>
                     );
                   },
                   child: Transform.rotate(
-                    angle:
-                    objects[i].rotation +
+                    angle: objects[i].rotation +
                         objectRotation(
                           objects[i].type,
                           i,
@@ -401,39 +404,48 @@ class _UniverseScreenState extends State<UniverseScreen>
             AnimatedBuilder(
               animation: controller,
               builder: (context, child) {
-                final t = controller.value * 2 * pi;
+                final screenSize = MediaQuery.of(context).size;
+                final driftSeconds =
+                    astronautDriftClock.elapsedMilliseconds / 1000.0;
+                const astronautSize = 46.0;
+                final maxX = max(0.0, screenSize.width - astronautSize - 12);
+                final maxY = max(0.0, screenSize.height - astronautSize - 128);
 
-                final x = 40 +
-                    sin(t * 0.25) * 20 +
-                    sin(t * 0.73) * 8 +
-                    cos(t * 0.41) * 6;
+                final normalizedX = 0.5 +
+                    sin(driftSeconds * 0.13) * 0.28 +
+                    sin(driftSeconds * 0.071 + 1.8) * 0.18 +
+                    cos(driftSeconds * 0.047 + 0.6) * 0.12;
+                final normalizedY = 0.5 +
+                    cos(driftSeconds * 0.11 + 0.5) * 0.26 +
+                    sin(driftSeconds * 0.061 + 2.4) * 0.2 +
+                    cos(driftSeconds * 0.039) * 0.1;
 
-                final y = 120 +
-                    cos(t * 0.18) * 14 +
-                    sin(t * 0.57) * 7 +
-                    cos(t * 0.91) * 4;
+                final x = (normalizedX.clamp(0.04, 0.96) * maxX).toDouble();
+                final y = (normalizedY.clamp(0.04, 0.96) * maxY).toDouble();
+                final angle = sin(driftSeconds * 0.19) * 0.18;
 
                 return Positioned(
                   left: x,
                   top: y,
                   child: GestureDetector(
                     onTap: showAstronautInfo,
-                    child: Image.asset(
-                      "assets/objects/astronaut.png",
-                      width: 30,
-                      height: 30,
-                      filterQuality: FilterQuality.none,
+                    child: Transform.rotate(
+                      angle: angle,
+                      child: Image.asset(
+                        "assets/objects/astronaut.png",
+                        width: astronautSize,
+                        height: astronautSize,
+                        filterQuality: FilterQuality.none,
+                      ),
                     ),
                   ),
                 );
               },
             ),
-
           ],
         ),
       ),
     );
-
   }
 }
 
