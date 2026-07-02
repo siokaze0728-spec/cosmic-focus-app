@@ -27,15 +27,17 @@ class _FocusScreenState extends State<FocusScreen>
   late DateTime focusEndsAt;
 
   Timer? timer;
+  Timer? bgmLoopTimer;
 
   bool isBgmPlaying = false;
   bool hasCompleted = false;
   bool isShowingRewardedAd = false;
-  StreamSubscription<void>? bgmCompleteSubscription;
+  bool isRestartingBgm = false;
 
   Future<void> startBgm() async {
-    await bgmCompleteSubscription?.cancel();
-    bgmCompleteSubscription = null;
+    bgmLoopTimer?.cancel();
+    bgmLoopTimer = null;
+    isRestartingBgm = false;
 
     if (!GameStorage.getBgmEnabled()) {
       isBgmPlaying = false;
@@ -64,6 +66,55 @@ class _FocusScreenState extends State<FocusScreen>
     await player.play(
       AssetSource('music/space_bgm.mp3'),
     );
+
+    bgmLoopTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+        return;
+      }
+
+      if (isRestartingBgm) {
+        return;
+      }
+
+      final position = await player.getCurrentPosition();
+      final duration = await player.getDuration();
+
+      if (position == null || duration == null) {
+        return;
+      }
+
+      if (duration - position > const Duration(seconds: 1)) {
+        return;
+      }
+
+      isRestartingBgm = true;
+
+      try {
+        await player.stop();
+
+        if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+          return;
+        }
+
+        await player.play(
+          AssetSource('music/space_bgm.mp3'),
+        );
+      } finally {
+        isRestartingBgm = false;
+      }
+    });
+  }
+
+  Future<void> pauseBgmForAd() async {
+    bgmLoopTimer?.cancel();
+    bgmLoopTimer = null;
+    isRestartingBgm = false;
+
+    if (!isBgmPlaying) {
+      return;
+    }
+
+    await player.pause();
   }
 
   Future<void> pauseBgmForAd() async {
@@ -544,7 +595,7 @@ class _FocusScreenState extends State<FocusScreen>
     isBgmPlaying = false;
 
     player.stop();
-    bgmCompleteSubscription?.cancel();
+    bgmLoopTimer?.cancel();
     player.dispose();
     sePlayer.dispose();
 
