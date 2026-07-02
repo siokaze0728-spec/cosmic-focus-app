@@ -86,7 +86,7 @@ class _FocusScreenState extends State<FocusScreen>
     isShowingRewardedAd = false;
 
     if (mounted) {
-      unawaited(resumeBgmIfNeeded());
+      unawaited(startBgm());
     }
   }
 
@@ -529,10 +529,6 @@ class _FocusScreenState extends State<FocusScreen>
     switch (state) {
       case AppLifecycleState.resumed:
         updateRemainingTime();
-
-        if (!isShowingRewardedAd) {
-          unawaited(resumeBgmIfNeeded());
-        }
         break;
 
       case AppLifecycleState.inactive:
