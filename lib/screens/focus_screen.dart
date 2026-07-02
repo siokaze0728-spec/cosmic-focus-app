@@ -47,6 +47,17 @@ class _FocusScreenState extends State<FocusScreen>
 
     isBgmPlaying = true;
 
+    bgmCompleteSubscription = player.onPlayerComplete.listen((_) async {
+      if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+        return;
+      }
+
+      await player.stop();
+      await player.play(
+        AssetSource('music/space_bgm.mp3'),
+      );
+    });
+
     await player.setPlayerMode(PlayerMode.mediaPlayer);
     await player.setReleaseMode(ReleaseMode.stop);
     await player.setVolume(GameStorage.getBgmVolume());
@@ -99,6 +110,14 @@ class _FocusScreenState extends State<FocusScreen>
     bgmLoopTimer = null;
     isRestartingBgm = false;
 
+    if (!isBgmPlaying) {
+      return;
+    }
+
+    await player.pause();
+  }
+
+  Future<void> pauseBgmForAd() async {
     if (!isBgmPlaying) {
       return;
     }
