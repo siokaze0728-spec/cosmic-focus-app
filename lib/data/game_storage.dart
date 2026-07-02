@@ -121,19 +121,52 @@ class GameStorage {
     return List<Map>.from(rawList);
   }
 
-  static void addFocusRecord({
+  static int addFocusRecord({
     required int minutes,
     required int coins,
     required String objectType,
+    required DateTime startedAt,
+    required DateTime endedAt,
+    bool rewardDoubled = false,
   }) {
     final records = getFocusRecords();
 
     records.add({
-      "date": DateTime.now().toIso8601String(),
+      "date": endedAt.toIso8601String(),
+      "startDate": startedAt.toIso8601String(),
+      "endDate": endedAt.toIso8601String(),
       "minutes": minutes,
       "coins": coins,
+      "baseCoins": rewardDoubled ? coins ~/ 2 : coins,
       "objectType": objectType,
+      "rewardMultiplier": rewardDoubled ? 2 : 1,
+      "rewardDoubled": rewardDoubled,
     });
+
+    box.put("focusRecords", records);
+
+    return records.length - 1;
+  }
+
+  static void updateFocusRecordReward({
+    required int index,
+    required int coins,
+    required bool rewardDoubled,
+  }) {
+    final records = getFocusRecords();
+
+    if (index < 0 || index >= records.length) {
+      return;
+    }
+
+    final record = Map<String, dynamic>.from(records[index]);
+
+    record["coins"] = coins;
+    record["baseCoins"] = rewardDoubled ? coins ~/ 2 : coins;
+    record["rewardMultiplier"] = rewardDoubled ? 2 : 1;
+    record["rewardDoubled"] = rewardDoubled;
+
+    records[index] = record;
 
     box.put("focusRecords", records);
   }
