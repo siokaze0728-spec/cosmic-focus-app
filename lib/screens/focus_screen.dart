@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -59,7 +59,7 @@ class _FocusScreenState extends State<FocusScreen>
 
     bgmRestartTimer = Timer.periodic(
       const Duration(minutes: 2, seconds: 55),
-          (_) async {
+      (_) async {
         if (!mounted || !isBgmPlaying || isRestartingBgm) {
           return;
         }
@@ -689,3 +689,4 @@ Widget buildFocusBackgroundObject(
       return const SizedBox();
   }
 }
+
