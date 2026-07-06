@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/bgm_track.dart';
 import '../data/game_storage.dart';
 import 'tutorial_screen.dart';
 
@@ -17,6 +18,10 @@ class SettingsScreen extends StatelessWidget {
           _BgmEnabledTile(),
 
           _BgmVolumeTile(),
+
+          _BgmSelectTile(),
+
+          _AudioCreditsTile(),
 
           _SeEnabledTile(),
 
@@ -151,6 +156,153 @@ class _BgmEnabledTileState extends State<_BgmEnabledTile> {
         });
 
         GameStorage.setBgmEnabled(value);
+      },
+    );
+  }
+}
+
+
+class _BgmSelectTile extends StatefulWidget {
+  @override
+  State<_BgmSelectTile> createState() => _BgmSelectTileState();
+}
+
+class _BgmSelectTileState extends State<_BgmSelectTile> {
+  late Future<List<BgmTrack>> availableTracksFuture;
+  String? selectedAsset;
+
+  @override
+  void initState() {
+    super.initState();
+    availableTracksFuture = loadAvailableBgmTracks();
+    _loadSelectedBgm();
+  }
+
+  Future<void> _loadSelectedBgm() async {
+    final asset = await GameStorage.getSelectedBgmAsset();
+
+    if (!mounted) return;
+
+    setState(() {
+      selectedAsset = asset;
+    });
+  }
+
+  Future<void> _selectBgm(List<BgmTrack> tracks) async {
+    final selectedTrack = await showDialog<BgmTrack>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text("BGMを選択"),
+        children: tracks
+            .map(
+              (track) => RadioListTile<String>(
+                title: Text(track.title),
+                subtitle: Text(track.asset.split('/').last),
+                value: track.asset,
+                groupValue: selectedAsset,
+                onChanged: (_) {
+                  Navigator.pop(context, track);
+                },
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    if (selectedTrack == null) {
+      return;
+    }
+
+    await GameStorage.setSelectedBgmAsset(selectedTrack.asset);
+
+    if (!mounted) return;
+
+    setState(() {
+      selectedAsset = selectedTrack.asset;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<BgmTrack>>(
+      future: availableTracksFuture,
+      builder: (context, snapshot) {
+        final tracks = snapshot.data ?? const <BgmTrack>[];
+        final selectedTrack = tracks.cast<BgmTrack?>().firstWhere(
+              (track) => track?.asset == selectedAsset,
+              orElse: () => null,
+            );
+
+        return ListTile(
+          leading: const Icon(Icons.library_music),
+          title: const Text("BGMを選択"),
+          subtitle: Text(selectedTrack?.title ?? "読み込み中"),
+          enabled: tracks.isNotEmpty,
+          onTap: tracks.isEmpty ? null : () => _selectBgm(tracks),
+        );
+      },
+    );
+  }
+}
+
+class _AudioCreditsTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.info_outline),
+      title: const Text("使用音源"),
+      subtitle: const Text("BGMのクレジットを表示します"),
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("使用音源"),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: FutureBuilder<List<BgmTrack>>(
+                future: loadAvailableBgmTracks(),
+                builder: (context, snapshot) {
+                  final tracks = snapshot.data ?? const <BgmTrack>[];
+
+                  if (tracks.isEmpty) {
+                    return const Text("表示できる音源情報がありません");
+                  }
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: tracks
+                          .map(
+                            (track) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("曲名：${track.title}"),
+                                  Text("作者：${track.author}"),
+                                  Text("ライセンス：${track.license}"),
+                                  Text("入手元：${track.source}"),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("閉じる"),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
