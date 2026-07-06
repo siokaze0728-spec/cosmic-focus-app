@@ -565,6 +565,8 @@ class _FocusScreenState extends State<FocusScreen>
 
   @override
   void dispose() {
+    debugPrint("[BGM] dispose");
+
     isBgmPlaying = false;
 
     bgmRestartTimer?.cancel();

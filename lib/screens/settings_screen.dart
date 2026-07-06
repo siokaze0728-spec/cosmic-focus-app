@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/game_storage.dart';
+import 'tutorial_screen.dart';
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -17,6 +19,23 @@ class SettingsScreen extends StatelessWidget {
           _BgmVolumeTile(),
 
           _SeEnabledTile(),
+
+          ListTile(
+            leading: const Icon(Icons.school),
+            title: const Text("チュートリアルを見る"),
+            subtitle: const Text(
+              "Cosmic Focusの使い方をもう一度確認します",
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => const TutorialScreen(),
+                ),
+              );
+            },
+          ),
 
           ListTile(
             leading: const Icon(Icons.delete),

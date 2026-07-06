@@ -4,6 +4,7 @@ import '../models/celestial_object.dart';
 
 
 class GameStorage {
+  static const String tutorialSeenKey = "tutorialSeen";
 
   static bool getBgmEnabled() {
     return box.get(
@@ -44,6 +45,20 @@ class GameStorage {
     box.put(
       "bgmVolume",
       volume,
+    );
+  }
+
+  static bool getTutorialSeen() {
+    return box.get(
+      tutorialSeenKey,
+      defaultValue: false,
+    );
+  }
+
+  static Future<void> setTutorialSeen(bool seen) async {
+    await box.put(
+      tutorialSeenKey,
+      seen,
     );
   }
 
