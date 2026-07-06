@@ -197,29 +197,62 @@ class _FocusScreenState extends State<FocusScreen>
     }
   }
 
-  int rewardCoins() {
+  int baseRewardCoins() {
     switch (widget.minute) {
       case 15:
         return 10;
 
       case 30:
-        return 20;
+        return 30;
 
       case 45:
-        return 35;
+        return 60;
 
       case 60:
-        return 50;
+        return 100;
 
       case 120:
-        return 120;
+        return 250;
 
       case 240:
-        return 300;
+        return 600;
 
       default:
-        return 10;
+        return max(1, (widget.minute * 10 / 15).round());
     }
+  }
+
+  int longFocusBonusPercent() {
+    final minutes = widget.minute;
+
+    if (minutes >= 240) {
+      return 100;
+    }
+
+    if (minutes >= 120) {
+      return 50;
+    }
+
+    if (minutes >= 60) {
+      return 20;
+    }
+
+    if (minutes >= 45) {
+      return 10;
+    }
+
+    if (minutes >= 30) {
+      return 5;
+    }
+
+    return 0;
+  }
+
+  int rewardCoins() {
+    final baseCoins = baseRewardCoins();
+    final bonusPercent = longFocusBonusPercent();
+
+    return (baseCoins * (100 + bonusPercent) / 100).round();
   }
 
   String rewardName() {
@@ -343,6 +376,7 @@ class _FocusScreenState extends State<FocusScreen>
     final beforeRank = GameStorage.getRankByMinutes(beforeTotal);
     final earnedObjectType = rewardType();
     final earnedCoins = rewardCoins();
+    final bonusPercent = longFocusBonusPercent();
     final endedAt = DateTime.now();
 
     GameStorage.addObject(earnedObjectType);
@@ -423,6 +457,17 @@ class _FocusScreenState extends State<FocusScreen>
                 color: Colors.amber,
               ),
             ),
+            if (bonusPercent > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                "長時間ボーナス +$bonusPercent%",
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.orangeAccent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
             if (isRankUp) ...[
               const SizedBox(height: 16),
               const Text(

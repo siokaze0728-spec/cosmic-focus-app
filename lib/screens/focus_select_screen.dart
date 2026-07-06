@@ -11,32 +11,33 @@ class FocusSelectScreen extends StatefulWidget {
 }
 
 class _FocusSelectScreenState extends State<FocusSelectScreen> {
-  static const int minMinutes = 15;
+  static const int minMinutes = 5;
   static const int maxMinutes = 240;
 
   Duration selectedDuration = const Duration(minutes: minMinutes);
 
   int get selectedMinutes {
     final minutes = selectedDuration.inMinutes;
+    final roundedMinutes = (minutes / 5).round() * 5;
 
-    if (minutes < minMinutes) {
+    if (roundedMinutes < minMinutes) {
       return minMinutes;
     }
 
-    if (minutes > maxMinutes) {
+    if (roundedMinutes > maxMinutes) {
       return maxMinutes;
     }
 
-    return minutes;
+    return roundedMinutes;
   }
 
   void startFocus() {
-    final minutes = selectedDuration.inMinutes;
+    final minutes = selectedMinutes;
 
-    if (minutes < minMinutes || minutes > maxMinutes) {
+    if (minutes < minMinutes || minutes > maxMinutes || minutes % 5 != 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("15分〜4時間の範囲で選択してください"),
+          content: Text("5分〜240分の範囲で、5分単位で選択してください"),
         ),
       );
       return;
@@ -81,7 +82,7 @@ class _FocusSelectScreenState extends State<FocusSelectScreen> {
             Expanded(
               child: CupertinoTimerPicker(
                 mode: CupertinoTimerPickerMode.hm,
-                minuteInterval: 15,
+                minuteInterval: 5,
                 initialTimerDuration: selectedDuration,
                 onTimerDurationChanged: (duration) {
                   setState(() {
