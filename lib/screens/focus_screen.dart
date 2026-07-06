@@ -29,6 +29,7 @@ class _FocusScreenState extends State<FocusScreen>
   Timer? timer;
   Timer? bgmRestartTimer;
 
+
   bool isBgmPlaying = false;
   bool hasCompleted = false;
   bool isShowingRewardedAd = false;
@@ -47,17 +48,6 @@ class _FocusScreenState extends State<FocusScreen>
 
     isBgmPlaying = true;
 
-    bgmCompleteSubscription = player.onPlayerComplete.listen((_) async {
-      if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
-        return;
-      }
-
-      await player.stop();
-      await player.play(
-        AssetSource('music/space_bgm.mp3'),
-      );
-    });
-
     await player.setPlayerMode(PlayerMode.mediaPlayer);
     await player.setReleaseMode(ReleaseMode.stop);
     await player.setVolume(GameStorage.getBgmVolume());
@@ -69,12 +59,12 @@ class _FocusScreenState extends State<FocusScreen>
 
     bgmRestartTimer = Timer.periodic(
       const Duration(minutes: 2, seconds: 55),
-      (_) async {
-        if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+          (_) async {
+        if (!mounted || !isBgmPlaying || isRestartingBgm) {
           return;
         }
 
-        if (isRestartingBgm) {
+        if (!GameStorage.getBgmEnabled()) {
           return;
         }
 
@@ -82,11 +72,6 @@ class _FocusScreenState extends State<FocusScreen>
 
         try {
           await player.stop();
-
-          if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
-            return;
-          }
-
           await player.play(
             AssetSource('music/space_bgm.mp3'),
           );
@@ -98,6 +83,8 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   Future<void> pauseBgmForAd() async {
+    debugPrint("[BGM] pause for ad");
+
     bgmRestartTimer?.cancel();
     bgmRestartTimer = null;
     isRestartingBgm = false;
@@ -118,6 +105,8 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   void restoreBgmAfterRewardedAd() {
+    debugPrint("[BGM] restore after ad");
+
     isShowingRewardedAd = false;
 
     if (mounted) {
@@ -577,6 +566,8 @@ class _FocusScreenState extends State<FocusScreen>
   @override
   void dispose() {
     isBgmPlaying = false;
+
+    bgmRestartTimer?.cancel();
 
     player.stop();
     bgmRestartTimer?.cancel();
