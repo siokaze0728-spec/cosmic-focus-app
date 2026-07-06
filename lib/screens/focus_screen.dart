@@ -67,11 +67,11 @@ class _FocusScreenState extends State<FocusScreen>
     debugPrint("[BGM] initial stop before");
     await player.stop();
     debugPrint("[BGM] initial stop after");
-    debugPrint("[BGM] initial play before");
+    debugPrint("[BGM] play before");
     await player.play(
       AssetSource('music/space_bgm.mp3'),
     );
-    debugPrint("[BGM] initial play after");
+    debugPrint("[BGM] play after");
 
     bgmRestartTimer = Timer.periodic(
       const Duration(seconds: 10),
