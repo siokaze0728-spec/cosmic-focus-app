@@ -1,10 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../data/bgm_track.dart';
 import '../data/game_storage.dart';
 
 class FocusScreen extends StatefulWidget {
@@ -52,9 +53,12 @@ class _FocusScreenState extends State<FocusScreen>
     await player.setReleaseMode(ReleaseMode.stop);
     await player.setVolume(GameStorage.getBgmVolume());
 
+    final selectedBgmAsset = await GameStorage.getSelectedBgmAsset();
+    final selectedBgmTrack = await resolveBgmTrack(selectedBgmAsset);
+
     await player.stop();
     await player.play(
-      AssetSource('music/space_bgm.mp3'),
+      AssetSource(selectedBgmTrack.assetSourcePath),
     );
 
     bgmRestartTimer = Timer.periodic(
@@ -71,9 +75,12 @@ class _FocusScreenState extends State<FocusScreen>
         isRestartingBgm = true;
 
         try {
+          final selectedBgmAsset = await GameStorage.getSelectedBgmAsset();
+          final selectedBgmTrack = await resolveBgmTrack(selectedBgmAsset);
+
           await player.stop();
           await player.play(
-            AssetSource('music/space_bgm.mp3'),
+            AssetSource(selectedBgmTrack.assetSourcePath),
           );
         } finally {
           isRestartingBgm = false;

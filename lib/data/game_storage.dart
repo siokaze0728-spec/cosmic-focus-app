@@ -1,10 +1,12 @@
 import 'package:hive/hive.dart';
 
 import '../models/celestial_object.dart';
+import 'bgm_track.dart';
 
 
 class GameStorage {
   static const String tutorialSeenKey = "tutorialSeen";
+  static const String selectedBgmAssetKey = "selectedBgmAsset";
 
   static bool getBgmEnabled() {
     return box.get(
@@ -31,6 +33,24 @@ class GameStorage {
     box.put(
       "seEnabled",
       enabled,
+    );
+  }
+
+  static Future<String> getSelectedBgmAsset() async {
+    final selectedAsset = box.get(
+      selectedBgmAssetKey,
+      defaultValue: defaultBgmTrack.asset,
+    ) as String;
+
+    final track = await resolveBgmTrack(selectedAsset);
+    return track.asset;
+  }
+
+  static Future<void> setSelectedBgmAsset(String asset) async {
+    final track = await resolveBgmTrack(asset);
+    await box.put(
+      selectedBgmAssetKey,
+      track.asset,
     );
   }
 
