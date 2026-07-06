@@ -27,11 +27,20 @@ class _FocusScreenState extends State<FocusScreen>
   late DateTime focusEndsAt;
 
   Timer? timer;
+  Timer? bgmRestartTimer;
 
   bool isBgmPlaying = false;
   bool hasCompleted = false;
+  bool isShowingRewardedAd = false;
+  bool isRestartingBgm = false;
 
   Future<void> startBgm() async {
+    debugPrint("[BGM] startBgm called");
+
+    bgmRestartTimer?.cancel();
+    bgmRestartTimer = null;
+    isRestartingBgm = false;
+
     if (!GameStorage.getBgmEnabled()) {
       isBgmPlaying = false;
       await player.stop();
@@ -41,20 +50,84 @@ class _FocusScreenState extends State<FocusScreen>
     isBgmPlaying = true;
 
     await player.setPlayerMode(PlayerMode.mediaPlayer);
-    await player.setReleaseMode(ReleaseMode.loop);
+    await player.setReleaseMode(ReleaseMode.stop);
     await player.setVolume(GameStorage.getBgmVolume());
 
+    debugPrint("[BGM] initial stop before");
+    await player.stop();
+    debugPrint("[BGM] initial stop after");
+    debugPrint("[BGM] initial play before");
     await player.play(
       AssetSource('music/space_bgm.mp3'),
     );
+    debugPrint("[BGM] initial play after");
+
+    bgmRestartTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) async {
+        debugPrint("[BGM] restart timer fired");
+
+        if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+          return;
+        }
+
+        if (isRestartingBgm) {
+          return;
+        }
+
+        isRestartingBgm = true;
+
+        try {
+          debugPrint("[BGM] timer stop before");
+          await player.stop();
+          debugPrint("[BGM] timer stop after");
+
+          if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+            return;
+          }
+
+          debugPrint("[BGM] timer play before");
+          await player.play(
+            AssetSource('music/space_bgm.mp3'),
+          );
+          debugPrint("[BGM] timer play after");
+        } finally {
+          isRestartingBgm = false;
+        }
+      },
+    );
   }
 
-  Future<void> resumeBgmIfNeeded() async {
-    if (!isBgmPlaying || !GameStorage.getBgmEnabled()) {
+  Future<void> pauseBgmForAd() async {
+    debugPrint("[BGM] pause for ad");
+
+    bgmRestartTimer?.cancel();
+    bgmRestartTimer = null;
+    isRestartingBgm = false;
+
+    if (!isBgmPlaying) {
       return;
     }
 
-    await player.resume();
+    await player.pause();
+  }
+
+  Future<void> resumeBgmIfNeeded() async {
+    if (!mounted || !isBgmPlaying || !GameStorage.getBgmEnabled()) {
+      return;
+    }
+
+    await startBgm();
+  }
+
+  void restoreBgmAfterRewardedAd() {
+    debugPrint("[BGM] restore after ad");
+
+    isShowingRewardedAd = false;
+
+    if (mounted) {
+      unawaited(startBgm());
+    }
   }
 
   bool hasUsedContinueAd = false;
@@ -373,19 +446,17 @@ class _FocusScreenState extends State<FocusScreen>
                 : () {
                     final ad = rewardedAd;
                     rewardedAd = null;
+                    isShowingRewardedAd = true;
+                    unawaited(pauseBgmForAd());
 
                     ad!.fullScreenContentCallback = FullScreenContentCallback(
                       onAdDismissedFullScreenContent: (ad) {
                         ad.dispose();
-                        if (mounted) {
-                          resumeBgmIfNeeded();
-                        }
+                        restoreBgmAfterRewardedAd();
                       },
                       onAdFailedToShowFullScreenContent: (ad, error) {
                         ad.dispose();
-                        if (mounted) {
-                          resumeBgmIfNeeded();
-                        }
+                        restoreBgmAfterRewardedAd();
                       },
                     );
 
@@ -466,19 +537,17 @@ class _FocusScreenState extends State<FocusScreen>
 
     final ad = rewardedAd;
     rewardedAd = null;
+    isShowingRewardedAd = true;
+    unawaited(pauseBgmForAd());
 
     ad!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        if (mounted) {
-          resumeBgmIfNeeded();
-        }
+        restoreBgmAfterRewardedAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
-        if (mounted) {
-          resumeBgmIfNeeded();
-        }
+        restoreBgmAfterRewardedAd();
       },
     );
 
@@ -496,20 +565,28 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(
-      AppLifecycleState state,
-      ) {
-    if (state == AppLifecycleState.resumed) {
-      updateRemainingTime();
-      resumeBgmIfNeeded();
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        updateRemainingTime();
+        break;
+
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        break;
     }
   }
 
   @override
   void dispose() {
+    debugPrint("[BGM] dispose");
+
     isBgmPlaying = false;
 
     player.stop();
+    bgmRestartTimer?.cancel();
     player.dispose();
     sePlayer.dispose();
 
