@@ -16,9 +16,44 @@ class _UniverseScreenState extends State<UniverseScreen>
     with SingleTickerProviderStateMixin {
   final random = Random();
 
+  static const List<String> spaceTrivia = [
+    "土星は水に浮くほど平均密度が低いとされています。",
+    "木星は太陽系で最も大きな惑星です。",
+    "ブラックホールは光さえ脱出できないほど重力が強い天体です。",
+    "火星は赤く見えるため「赤い惑星」と呼ばれます。",
+    "銀河には数千億個もの星が含まれることがあります。",
+    "宇宙では音は空気のような媒質がないため伝わりません。",
+    "流れ星は星ではなく、宇宙の小さなちりが大気で光る現象です。",
+    "太陽の光が地球に届くまでには約8分20秒かかります。",
+    "月は毎年少しずつ地球から遠ざかっています。",
+    "金星は自転の向きが多くの惑星と逆で、太陽が西から昇ります。",
+    "水星の昼夜の温度差は非常に大きいことで知られています。",
+    "海王星では地球よりもはるかに強い風が吹くことがあります。",
+    "天王星は横倒しに近い傾きで自転しています。",
+    "国際宇宙ステーションは地球を約90分で1周します。",
+    "宇宙服は小さな宇宙船のように、酸素や温度を守る仕組みがあります。",
+    "太陽は太陽系の質量のほとんどを占めています。",
+    "彗星は氷やちりを多く含み、太陽に近づくと尾が伸びます。",
+    "月の重力は地球の約6分の1です。",
+    "地球の大気があるからこそ、空は青く見えます。",
+    "オリオン座のベテルギウスは赤色超巨星として知られています。",
+    "北極星は地球の北の空でほとんど動かない目印に見えます。",
+    "太陽系には火星と木星の間に小惑星帯があります。",
+    "宇宙には地球の砂粒より多いほどの星があるとも言われます。",
+    "白色矮星は太陽のような星が一生の終盤に残す高密度の天体です。",
+    "中性子星はとても小さいのに、非常に大きな質量を持つことがあります。",
+    "光年は時間ではなく、光が1年で進む距離を表す単位です。",
+    "土星の環は氷や岩のかけらが集まってできています。",
+    "太陽の表面温度は約5500度とされています。",
+    "銀河系の中心には巨大なブラックホールがあると考えられています。",
+    "宇宙は今も膨張していると観測から考えられています。",
+  ];
+
   List<CelestialObject> objects = [];
 
   late AnimationController controller;
+
+  late final String currentTrivia;
 
   final Stopwatch astronautDriftClock = Stopwatch();
 
@@ -29,6 +64,8 @@ class _UniverseScreenState extends State<UniverseScreen>
   @override
   void initState() {
     super.initState();
+
+    currentTrivia = spaceTrivia[random.nextInt(spaceTrivia.length)];
 
     controller = AnimationController(
       vsync: this,
@@ -356,6 +393,73 @@ class _UniverseScreenState extends State<UniverseScreen>
     }
   }
 
+  Widget buildTriviaCard() {
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xE61A1733),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: const Color(0x99A78BFA),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x663F2B96),
+                blurRadius: 18,
+                spreadRadius: 1,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: Color(0xFFFFE082),
+                    size: 18,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    "今日の宇宙トリビア",
+                    style: TextStyle(
+                      color: Color(0xFFFFF3C4),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                currentTrivia,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     controller.dispose();
@@ -442,6 +546,8 @@ class _UniverseScreenState extends State<UniverseScreen>
                 );
               },
             ),
+
+            buildTriviaCard(),
           ],
         ),
       ),
