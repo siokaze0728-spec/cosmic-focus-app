@@ -7,6 +7,7 @@ import '../data/game_storage.dart';
 import 'shop_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
+import 'tutorial_screen.dart';
 import 'catalog_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,6 +18,32 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _tutorialChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showTutorialIfNeeded();
+    });
+  }
+
+  Future<void> _showTutorialIfNeeded() async {
+    if (!mounted || _tutorialChecked || GameStorage.getTutorialSeen()) {
+      return;
+    }
+
+    _tutorialChecked = true;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const TutorialScreen(),
+      ),
+    );
+  }
+
   static const _menuItems = [
     _HomeMenuItem(
       label: 'Focus',
